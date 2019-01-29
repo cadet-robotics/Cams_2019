@@ -235,7 +235,7 @@ public final class Main {
         for (CameraConfig cameraConfig : cameraConfigs) {
             cameras.add(startCamera(inst, cameraConfig));
         }
-        CamManager.init(inst, cameras.toArray(new VideoSource[cameras.size()]), cameras.size());
+        CamManager.init(inst, ntinst, cameras.toArray(new VideoSource[cameras.size()]), cameras.size());
         CamManager.startCams();
 
 

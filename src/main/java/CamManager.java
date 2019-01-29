@@ -1,6 +1,7 @@
 import edu.wpi.cscore.*;
 import edu.wpi.first.cameraserver.CameraServer;
-import org.opencv.calib3d.StereoBM;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 
@@ -9,19 +10,23 @@ import java.util.List;
 
 public class CamManager extends Thread {
     private static CamManager instance = null;
+    private NetworkTableInstance nt;
+    private NetworkTableEntry lineEntry;
 
-    public static double RATIO_SCORE_THRESH = 20/*0.5*/;
+    public static double RATIO_SCORE_THRESH = /*0.5*/20;
 
     private static CameraServer camServer;
     private static VideoCamera[] cams;
 
     private static CvSink[] ins;
     private static CvSource autoOut; // to computer from robot
-    private static CvSource distOut; // to computer from robot
+    private static CvSource lineOut; // to computer from robot
 
     //public static final CamType[] camTypes = new CamType[] {CamType.CAM_LIFE_HD_3000, CamType.CAM_LIFE_HD_3000};
 
-    private CamManager(CameraServer camServer, VideoSource[] camsIn, int lenCams) {
+    private CamManager(CameraServer camServer, NetworkTableInstance ntIn, VideoSource[] camsIn, int lenCams) {
+        nt = ntIn;
+        lineEntry = nt.getTable("pidata").getEntry("line");
         cams = new VideoCamera[lenCams];
         System.arraycopy(camsIn, 0, cams, 0, lenCams);
         ins = new CvSink[lenCams];
@@ -31,25 +36,26 @@ public class CamManager extends Thread {
             //cams[i].setResolution(640, 480);
             ins[i] = camServer.getVideo(cams[i]);
         }
-        //autoOut = camServer.putVideo("auto", 640, 480);
-        distOut = camServer.putVideo("dist", 640, 480);
-        autoOut = new CvSource("auto", VideoMode.PixelFormat.kMJPEG, 320, 240, 30);
-        MjpegServer s = new MjpegServer("serv", 8089);
-        s.setSource(autoOut);
+        autoOut = camServer.putVideo("auto", 320, 240);//new CvSource("auto", VideoMode.PixelFormat.kMJPEG, 320, 240, 30);
+        MjpegServer s1 = new MjpegServer("serv_auto", 8089);
+        s1.setSource(autoOut);
+        lineOut = camServer.putVideo("line", 320, 240);//new CvSource("line", VideoMode.PixelFormat.kMJPEG, 320, 240, 30);
+        MjpegServer s2 = new MjpegServer("serv_line", 8090);
+        s2.setSource(lineOut);
     }
 
     public static CamManager getInstance() {
         return instance;
     }
 
-    public static CamManager init(CameraServer camServer, VideoSource[] ins, int len) {
-        instance = new CamManager(camServer, ins, len);
+    public static CamManager init(CameraServer camServer, NetworkTableInstance ntIn, VideoSource[] ins, int len) {
+        instance = new CamManager(camServer, ntIn, ins, len);
         return instance;
     }
 
-    public static final int RHO_TRANSFORM_VALUE = (int) Math.ceil(Math.sqrt(640 * 640 + 480 * 480));
+    //public static final int RHO_TRANSFORM_VALUE = (int) Math.ceil(Math.sqrt(640 * 640 + 480 * 480));
 
-    public static final Scalar FILTER_LOW = new Scalar(0, 250, 0);
+    public static final Scalar FILTER_LOW = new Scalar(0, 50, 0);
     public static final Scalar FILTER_HIGH = new Scalar(255, 255, 255);
 
     public static final int BLUR_THRESH = 60;
@@ -65,6 +71,7 @@ public class CamManager extends Thread {
     private ArrayList<MatOfPoint> contoursFilter = new ArrayList<>(); // filtered shapes
     private ArrayList<RotatedRect> targets = new ArrayList<>(); // found rectangles that fill criteria
 
+    /*
     public static StereoBM distCalc = StereoBM.create(16, 15);
 
     static {
@@ -80,22 +87,9 @@ public class CamManager extends Thread {
         distCalc.setSpeckleRange(8);
         distCalc.setDisp12MaxDiff(1);
     }
+    */
 
-    private static Object distLock = new Object();
-    private Mat distMap = new Mat();
-    private boolean isDistUpdated = false;
-
-    public boolean getDistUpdated() {
-        synchronized (distLock) {
-            return isDistUpdated;
-        }
-    }
-
-    public Mat getDistMap() {
-        synchronized (distLock) {
-            return distMap.clone();
-        }
-    }
+    private Mat lineMap = new Mat();
 
     public static boolean startCams() {
         if (instance == null) return false;
@@ -103,14 +97,58 @@ public class CamManager extends Thread {
         return true;
     }
 
-    public static void rectSoup(List<RotatedRect> rects) {
+    public void rectSoup(List<RotatedRect> rects, Mat m) {
+        int best = -1;
+        double v = 0;
+        Point[][] allLines = new Point[rects.size()][];
+        for (int n = 0; n < rects.size(); n++) {
+            RotatedRect r = rects.get(n);
+            Point[] ps = new Point[4];
+            r.points(ps);
+            Point[] lines = new Point[4];
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < 2; j++) {
+                    lines[i * 2 + j] = AutoCamManagerUtil.midpoint(ps[j * 2 + i], ps[(j * 2 + i + 1) % 4]);
+                }
+            }
+            double[] lens = new double[2];
+            for (int i = 0; i < 2; i++) {
+                lens[i] = AutoCamManagerUtil.dist(lines[i * 2], lines[i * 2 + 1]);
+            }
+            int bestN = (lens[0] > lens[1]) ? 0 : 1;
+            allLines[n] = new Point[]{lines[bestN * 2], lines[bestN * 2 + 1]};
+            if (lens[bestN] > v) {
+                best = n;
+                v = lens[bestN];
+            }
+            //Imgproc.line(m, AutoCamManagerUtil.midpoint(ps[0], ps[1]), AutoCamManagerUtil.midpoint(ps[2], ps[3]), AutoCamManagerUtil.COLOR_RED);
+            //Imgproc.line(m, AutoCamManagerUtil.midpoint(ps[1], ps[2]), AutoCamManagerUtil.midpoint(ps[3], ps[0]), AutoCamManagerUtil.COLOR_RED);
+        }
+        if ((best != -1) && AutoCamManagerUtil.isOk(allLines[best][0].x, allLines[best][0].y, 320, 240, 24) && AutoCamManagerUtil.isOk(allLines[best][1].x, allLines[best][1].y, 320, 240, 24)) {
+            Imgproc.line(m, allLines[best][0], allLines[best][1], AutoCamManagerUtil.COLOR_RED);
+            lineEntry.setDoubleArray(new double[] {allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y});
+            Imgproc.putText(m, String.format("{(%.2f, %.2f),(%.2f, %.2f)}", allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y), AutoCamManagerUtil.midpoint(allLines[best]), 0, 0.2, AutoCamManagerUtil.COLOR_WHITE);
+        }
+    }
+
+    public static MatOfPoint findConvexHulls(MatOfPoint in) {
+        MatOfPoint out = new MatOfPoint();
+        MatOfInt convex = new MatOfInt();
+        Imgproc.convexHull(in, convex, false);
+        out.create((int) convex.size().height, 1, CvType.CV_32SC2); // Create empty contour
+        for (int i = 0; i < convex.size().height; ++i) {
+            int j = (int) convex.get(i, 0)[0];
+            out.put(i, 0, in.get(j, 0)[0], in.get(j, 0)[1]); // Convex hull returns a list of points by returning their indexes in the original contour
+        }
+        return out;
     }
 
     public void run() {
         while (!Thread.interrupted()) {
-            synchronized (distLock) {
-                ins[0].grabFrame(m1); // Uses left camera
-                if (!m1.empty()) {
+            //synchronized (distLock) {
+            ins[0].grabFrame(m1); // Uses left camera
+            if (!m1.empty()) {
+                    /*
                     if ((ins.length > 1) && (ins[1].grabFrame(m2) != 0) && !m2.empty()) {
                         Imgproc.cvtColor(m1, m3, Imgproc.COLOR_BGR2GRAY);
                         Imgproc.cvtColor(m2, distMap, Imgproc.COLOR_BGR2GRAY);
@@ -119,51 +157,58 @@ public class CamManager extends Thread {
                         distOut.putFrame(distMap);
                         isDistUpdated = true;
                     } else isDistUpdated = false;
-                    Imgproc.cvtColor(m1, m2, Imgproc.COLOR_BGR2HLS);                                            // Change color scheme from BGR to HSL
-                    Core.inRange(m2, FILTER_LOW, FILTER_HIGH, m3);                                                // Filter colors with <250 lightness
-                    Imgproc.cvtColor(m3, m2, Imgproc.COLOR_GRAY2BGR);                                            // Convert grayscale back to BGR
-                    //Core.bitwise_or(m1, m2, m3);
-                    Imgproc.GaussianBlur(m2, m3, new Size(5, 5), 0);                                            // Blur
-                    Imgproc.threshold(m3, m2, BLUR_THRESH, 255, Imgproc.THRESH_BINARY);                            // Turn colors <60 black, >=60 white
-                    Imgproc.cvtColor(m3, m2, Imgproc.COLOR_BGR2GRAY);                                            // Convert BGR to grayscale
-                    //Imgproc.HoughLines(m2, m3, RHO_TRANSFORM_VALUE, 90, 90);
-                    Imgproc.findContours(m2, contours, m3, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);    // Find shapes
-                    Imgproc.rectangle(m1, new Point(0, 0), new Point(640, 480), new Scalar(0, 0, 0), -1);        // Clear m1
-                    ArrayList<RotatedRect> rects = new ArrayList<>();
-                    for (MatOfPoint c : contours) {
-                        //MatOfPoint2f cTemp1 = new MatOfPoint2f(c.toArray());
-                        //Imgproc.approxPolyDP(cTemp1, cTemp2, Imgproc.arcLength(cTemp1, true) / 1000, true);
-                        //if (Imgproc.contourArea(cTemp2) > 500 || true) contoursFilter.add(new MatOfPoint(cTemp2.toArray()));
-                        /* calculates convex hulls */
-                        if (Imgproc.contourArea(c) >= 50) {
-                            MatOfInt convex = new MatOfInt();
-                            MatOfPoint convexM1 = new MatOfPoint();
-                            Imgproc.convexHull(c, convex, false);
-                            convexM1.create((int) convex.size().height, 1, CvType.CV_32SC2); // Create empty contour
-                            for (int i = 0; i < convex.size().height; ++i) {
-                                int j = (int) convex.get(i, 0)[0];
-                                convexM1.put(i, 0, c.get(j, 0)[0], c.get(j, 0)[1]); // Convex hull returns a list of points by returning their indexes in the original contour
-                            }
-                            RotatedRect r = Imgproc.minAreaRect(new MatOfPoint2f(convexM1.toArray())); // Get minimum area rectangle / rotated bounding box
+                    */
+                Imgproc.cvtColor(m1, m2, Imgproc.COLOR_BGR2HLS);                                            // Change color scheme from BGR to HSL
+                Core.inRange(m2, FILTER_LOW, FILTER_HIGH, m3);                                                // Filter colors with <250 lightness
+                Imgproc.cvtColor(m3, m2, Imgproc.COLOR_GRAY2BGR);                                            // Convert grayscale back to BGR
+                //Core.bitwise_or(m1, m2, m3);
+                Imgproc.GaussianBlur(m2, m3, new Size(5, 5), 0);                                            // Blur
+                Imgproc.threshold(m3, m2, BLUR_THRESH, 255, Imgproc.THRESH_BINARY);                            // Turn colors <60 black, >=60 white
+                Imgproc.cvtColor(m3, m2, Imgproc.COLOR_BGR2GRAY);                                            // Convert BGR to grayscale
+                //m2.copyTo(lineMap);
+                //Imgproc.HoughLines(m2, m3, RHO_TRANSFORM_VALUE, 90, 90);
+                Imgproc.findContours(m2, contours, m3, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);    // Find shapes
+                lineMap.create(m1.size(), m1.type());
+                Imgproc.rectangle(lineMap, new Point(0, 0), new Point(640, 480), new Scalar(0, 0, 0), -1);
+                    /*
+                    Imgproc.drawContours(lineMap, contours, -1, AutoCamManagerUtil.COLOR_WHITE);
+                    //lineOut.putFrame(lineMap);
+                    */
+                Imgproc.rectangle(m1, new Point(0, 0), new Point(640, 480), new Scalar(0, 0, 0), -1);        // Clear m1
+                ArrayList<RotatedRect> rects = new ArrayList<>();
+                //ArrayList<MatOfPoint> cs = new ArrayList<>();
+                for (MatOfPoint c : contours) {
+                    //MatOfPoint2f cTemp1 = new MatOfPoint2f(c.toArray());
+                    //Imgproc.approxPolyDP(cTemp1, cTemp2, Imgproc.arcLength(cTemp1, true) / 1000, true);
+                    //if (Imgproc.contourArea(cTemp2) > 500 || true) contoursFilter.add(new MatOfPoint(cTemp2.toArray()));
+                    /* calculates convex hulls */
+                    MatOfPoint convexM1 = findConvexHulls(c);
+                    //cs.add(convexM1);
+                    if (Imgproc.contourArea(c) >= 50) {
+                        RotatedRect r = Imgproc.minAreaRect(new MatOfPoint2f(convexM1.toArray())); // Get minimum area rectangle / rotated bounding box
+                        double score = Math.abs(r.size.area() / Imgproc.contourArea(convexM1) - 1);
+                        //double score = AutoCamManagerUtil.scoreRectRatio(r); // Determine how close to the expected ratio the rectangle's sides are
+                        if (score <= CamManager.RATIO_SCORE_THRESH) { // It's good enough
                             rects.add(r);
-                            double score = AutoCamManagerUtil.scoreRectRatio(r); // Determine how close to the expected ratio the rectangle's sides are
-                            if (score <= CamManager.RATIO_SCORE_THRESH) { // It's good enough
-                                /* Bop it */
-                                /* Twist it */
-                                /* Record it */
-                                targets.add(r);
-                                /* Draw it */
-                                Point[] box = new Point[4];
-                                r.points(box);
-                                for (int i = 0; i < 4; i++) {
-                                    Imgproc.line(m1, box[i], box[(i + 1) % 4], AutoCamManagerUtil.COLOR_WHITE);//(score <= RATIO_SCORE_THRESH) ? COLOR_WHITE : COLOR_RED);
-                                }
-                                /* Write it (the rectangle's "score") */
-                                Imgproc.putText(m1, String.format("%f", score), r.center, 0, 1, AutoCamManagerUtil.COLOR_WHITE);
+                            /* Bop it */
+                            /* Twist it */
+                            /* Record it */
+                            targets.add(r);
+                            /* Draw it */
+                            Point[] box = new Point[4];
+                            r.points(box);
+                            for (int i = 0; i < 4; i++) {
+                                Imgproc.line(m1, box[i], box[(i + 1) % 4], AutoCamManagerUtil.COLOR_WHITE);//(score <= RATIO_SCORE_THRESH) ? COLOR_WHITE : COLOR_RED);
                             }
+                            /* Write it (the rectangle's "score") */
+                            Imgproc.putText(m1, String.format("%f", score), r.center, 0, 1, AutoCamManagerUtil.COLOR_WHITE);
                         }
                     }
-                    rectSoup(rects);
+                }
+                //Imgproc.drawContours(lineMap, cs, -1, AutoCamManagerUtil.COLOR_RED);
+                rectSoup(rects, lineMap);
+                lineOut.putFrame(lineMap);
+                    /*
                     if (targets.size() > 2) { // We found 2+ viable rectangles
                         // Find the most viable pair
                         double bestScore = 0;
@@ -182,15 +227,15 @@ public class CamManager extends Thread {
                         for (int i = 0; i < 2; ++i)
                             Imgproc.drawMarker(m1, targets.get(best[i]).center, AutoCamManagerUtil.COLOR_RED);
                     }
-                    // Draw shapes (accepted rectangles from earlier, with the right side ratio)
-                    Imgproc.drawContours(m1, contoursFilter, -1, AutoCamManagerUtil.COLOR_WHITE);
-                    // Clear array lists
-                    contours.clear();
-                    contoursFilter.clear();
-                    // Output
-                    autoOut.putFrame(m1);
-                } else isDistUpdated = false;
-            }
+                    */
+                // Draw shapes (accepted rectangles from earlier, with the right side ratio)
+                Imgproc.drawContours(m1, contoursFilter, -1, AutoCamManagerUtil.COLOR_WHITE);
+                // Clear array lists
+                contours.clear();
+                contoursFilter.clear();
+                // Output
+                autoOut.putFrame(m1);
+            } else System.err.println("Failed to get stream");
         }
     }
 }
@@ -202,6 +247,7 @@ class AutoCamManagerUtil {
 
     public static final Scalar COLOR_WHITE = new Scalar(255, 255, 255);
     public static final Scalar COLOR_RED = new Scalar(0, 0, 255);
+    public static final Scalar COLOR_GREEN = new Scalar(0, 255, 0);
 
     public static double scoreRectRatio(RotatedRect r) {
         double rat = r.size.height / r.size.width;
@@ -295,5 +341,39 @@ class AutoCamManagerUtil {
 
     public static double dist(Point p1, Point p2) {
         return Math.sqrt(distSq(p1, p2));
+    }
+
+    public static Point midpoint(Point... ps) {
+        double x = 0, y = 0;
+        for (Point p : ps) {
+            x += p.x;
+            y += p.y;
+        }
+        return new Point(x / ps.length, y / ps.length);
+    }
+
+    /*
+    public static double getArea(MatOfPoint mat) {
+        Point m = midpoint(mat.toArray());
+        double t = 0;
+        Point[] ps = mat.toArray();
+        for (int i = 0; i < ps.length; i++) {
+            t += trigArea(ps[i], ps[(i + 1) % ps.length], m);
+        }
+        return t;
+    }
+
+    public static double trigArea(Point... ps) {
+        double[] sides = new double[3];
+        for (int i = 0; i < 3; i++) sides[i] = dist(ps[i], ps[(i + 1) % 3]);
+        double ph = (sides[0] + sides[1] + sides[2]) / 2;
+        return Math.sqrt(ph * (ph - sides[0]) * (ph - sides[1]) * (ph - sides[2]));
+    }
+    */
+
+    public static boolean isOk(double x, double y, double sx, double sy, double r) {
+        if ((x < r) || (x > (sx - r))) return false;
+        if ((y < r) || (y > (sy - r))) return false;
+        return true;
     }
 }
