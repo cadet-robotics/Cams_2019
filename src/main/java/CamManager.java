@@ -4,14 +4,21 @@ import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
+import org.w3c.dom.Node;
 
+import java.util.AbstractSequentialList;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 public class CamManager extends Thread {
     private static CamManager instance = null;
     private NetworkTableInstance nt;
     private NetworkTableEntry lineEntry;
+    private NetworkTableEntry testEntry;
 
     public static double RATIO_SCORE_THRESH = /*0.5*/20;
 
@@ -26,7 +33,8 @@ public class CamManager extends Thread {
 
     private CamManager(CameraServer camServer, NetworkTableInstance ntIn, VideoSource[] camsIn, int lenCams) {
         nt = ntIn;
-        lineEntry = nt.getTable("pidata").getEntry("line");
+        lineEntry = nt.getTable("ShuffleBoard").getEntry("line");
+        testEntry = nt.getTable("ShuffleBoard").getEntry("test");
         cams = new VideoCamera[lenCams];
         System.arraycopy(camsIn, 0, cams, 0, lenCams);
         ins = new CvSink[lenCams];
@@ -108,12 +116,12 @@ public class CamManager extends Thread {
             Point[] lines = new Point[4];
             for (int i = 0; i < 2; i++) {
                 for (int j = 0; j < 2; j++) {
-                    lines[i * 2 + j] = AutoCamManagerUtil.midpoint(ps[j * 2 + i], ps[(j * 2 + i + 1) % 4]);
+                    lines[i * 2 + j] = VisionCalcs.midpoint(ps[j * 2 + i], ps[(j * 2 + i + 1) % 4]);
                 }
             }
             double[] lens = new double[2];
             for (int i = 0; i < 2; i++) {
-                lens[i] = AutoCamManagerUtil.dist(lines[i * 2], lines[i * 2 + 1]);
+                lens[i] = VisionCalcs.dist(lines[i * 2], lines[i * 2 + 1]);
             }
             int bestN = (lens[0] > lens[1]) ? 0 : 1;
             allLines[n] = new Point[]{lines[bestN * 2], lines[bestN * 2 + 1]};
@@ -124,27 +132,16 @@ public class CamManager extends Thread {
             //Imgproc.line(m, AutoCamManagerUtil.midpoint(ps[0], ps[1]), AutoCamManagerUtil.midpoint(ps[2], ps[3]), AutoCamManagerUtil.COLOR_RED);
             //Imgproc.line(m, AutoCamManagerUtil.midpoint(ps[1], ps[2]), AutoCamManagerUtil.midpoint(ps[3], ps[0]), AutoCamManagerUtil.COLOR_RED);
         }
-        if ((best != -1) && AutoCamManagerUtil.isOk(allLines[best][0].x, allLines[best][0].y, 320, 240, 24) && AutoCamManagerUtil.isOk(allLines[best][1].x, allLines[best][1].y, 320, 240, 24)) {
-            Imgproc.line(m, allLines[best][0], allLines[best][1], AutoCamManagerUtil.COLOR_RED);
+        if ((best != -1) && (VisionCalcs.isOk(allLines[best][0].x, allLines[best][0].y, 320, 240, 48) || VisionCalcs.isOk(allLines[best][1].x, allLines[best][1].y, 320, 240, 48))) {
+            Imgproc.line(m, allLines[best][0], allLines[best][1], VisionCalcs.COLOR_RED);
             lineEntry.setDoubleArray(new double[] {allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y});
-            Imgproc.putText(m, String.format("{(%.2f, %.2f),(%.2f, %.2f)}", allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y), AutoCamManagerUtil.midpoint(allLines[best]), 0, 0.2, AutoCamManagerUtil.COLOR_WHITE);
+            Imgproc.putText(m, String.format("{(%.2f, %.2f),(%.2f, %.2f)}", allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y), VisionCalcs.midpoint(allLines[best]), 0, 0.2, VisionCalcs.COLOR_WHITE);
         }
-    }
-
-    public static MatOfPoint findConvexHulls(MatOfPoint in) {
-        MatOfPoint out = new MatOfPoint();
-        MatOfInt convex = new MatOfInt();
-        Imgproc.convexHull(in, convex, false);
-        out.create((int) convex.size().height, 1, CvType.CV_32SC2); // Create empty contour
-        for (int i = 0; i < convex.size().height; ++i) {
-            int j = (int) convex.get(i, 0)[0];
-            out.put(i, 0, in.get(j, 0)[0], in.get(j, 0)[1]); // Convex hull returns a list of points by returning their indexes in the original contour
-        }
-        return out;
     }
 
     public void run() {
         while (!Thread.interrupted()) {
+            testEntry.setNumber(System.currentTimeMillis());
             //synchronized (distLock) {
             ins[0].grabFrame(m1); // Uses left camera
             if (!m1.empty()) {
@@ -182,11 +179,11 @@ public class CamManager extends Thread {
                     //Imgproc.approxPolyDP(cTemp1, cTemp2, Imgproc.arcLength(cTemp1, true) / 1000, true);
                     //if (Imgproc.contourArea(cTemp2) > 500 || true) contoursFilter.add(new MatOfPoint(cTemp2.toArray()));
                     /* calculates convex hulls */
-                    MatOfPoint convexM1 = findConvexHulls(c);
+                    MatOfPoint convexM1 = VisionCalcs.findConvexHull(c);
                     //cs.add(convexM1);
                     if (Imgproc.contourArea(c) >= 50) {
-                        RotatedRect r = Imgproc.minAreaRect(new MatOfPoint2f(convexM1.toArray())); // Get minimum area rectangle / rotated bounding box
-                        double score = Math.abs(r.size.area() / Imgproc.contourArea(convexM1) - 1);
+                        RotatedRect r = Imgproc.minAreaRect(new MatOfPoint2f(c.toArray())); // Get minimum area rectangle / rotated bounding box
+                        double score = Math.abs(r.size.area() / Imgproc.contourArea(c) - 1);
                         //double score = AutoCamManagerUtil.scoreRectRatio(r); // Determine how close to the expected ratio the rectangle's sides are
                         if (score <= CamManager.RATIO_SCORE_THRESH) { // It's good enough
                             rects.add(r);
@@ -198,10 +195,10 @@ public class CamManager extends Thread {
                             Point[] box = new Point[4];
                             r.points(box);
                             for (int i = 0; i < 4; i++) {
-                                Imgproc.line(m1, box[i], box[(i + 1) % 4], AutoCamManagerUtil.COLOR_WHITE);//(score <= RATIO_SCORE_THRESH) ? COLOR_WHITE : COLOR_RED);
+                                Imgproc.line(m1, box[i], box[(i + 1) % 4], VisionCalcs.COLOR_WHITE);//(score <= RATIO_SCORE_THRESH) ? COLOR_WHITE : COLOR_RED);
                             }
                             /* Write it (the rectangle's "score") */
-                            Imgproc.putText(m1, String.format("%f", score), r.center, 0, 1, AutoCamManagerUtil.COLOR_WHITE);
+                            Imgproc.putText(m1, String.format("%f", score), r.center, 0, 1, VisionCalcs.COLOR_WHITE);
                         }
                     }
                 }
@@ -229,7 +226,7 @@ public class CamManager extends Thread {
                     }
                     */
                 // Draw shapes (accepted rectangles from earlier, with the right side ratio)
-                Imgproc.drawContours(m1, contoursFilter, -1, AutoCamManagerUtil.COLOR_WHITE);
+                Imgproc.drawContours(m1, contoursFilter, -1, VisionCalcs.COLOR_WHITE);
                 // Clear array lists
                 contours.clear();
                 contoursFilter.clear();
@@ -237,143 +234,5 @@ public class CamManager extends Thread {
                 autoOut.putFrame(m1);
             } else System.err.println("Failed to get stream");
         }
-    }
-}
-
-class AutoCamManagerUtil {
-    public static final double RECTANGLE_TARGET_RATIO = 8;
-    public static final double RECTANGLE_DUAL_DIST = 6;
-    public static final double RECTANGLE_SIDE_DIST_RATIO = RECTANGLE_TARGET_RATIO / RECTANGLE_DUAL_DIST;
-
-    public static final Scalar COLOR_WHITE = new Scalar(255, 255, 255);
-    public static final Scalar COLOR_RED = new Scalar(0, 0, 255);
-    public static final Scalar COLOR_GREEN = new Scalar(0, 255, 0);
-
-    public static double scoreRectRatio(RotatedRect r) {
-        double rat = r.size.height / r.size.width;
-        if (rat < 1) rat = 1 / rat;
-        return Math.abs(rat / RECTANGLE_TARGET_RATIO - 1);
-    }
-
-    public static double scoreDualRectRatio(RotatedRect r1, RotatedRect r2) {
-        double sAdv = (Math.max(r1.size.width, r1.size.height) + Math.max(r2.size.width, r2.size.height)) / 2;
-        return Math.abs(dist(r1.center, r2.center) * RECTANGLE_SIDE_DIST_RATIO / sAdv - 1);
-    }
-
-    public static double scoreRectDual(RotatedRect r1, RotatedRect r2) {
-        double a1 = r1.size.area(), a2 = r2.size.area();
-        if (a2 > a1) {
-            double t = a2;
-            a2 = a1;
-            a1 = t;
-        }
-        return Math.abs(a1 / a2 - 1);
-    }
-
-	/*public static double scoreRect(MatOfPoint c) {
-		Point[] box = new Point[4];
-		Imgproc.minAreaRect(new MatOfPoint2f(c.toArray())).points(box);
-		for (int i = 0; i < c.size().height; ++i) {
-			c.get(i, 0)
-		}
-		return 0;
-	}
-
-	public static double findDistToLine(Point p1, Point p2, Point loc) {
-		if (p1.x == p2.x) {
-			// Points have same x
-			if (p1.y == p2.y) {
-				// Points are identical
-				return dist(loc, p2);
-			} else if (p1.y > p2.y) {
-				// Make p2.y > p1.y
-				Point t = p1;
-				p1 = p2;
-				p2 = t;
-			}
-			if (loc.y > p2.y) {
-				// Location is above top point
-				return dist(loc, p2);
-			} else if (loc.y < p1.y) {
-				// Location is below bottom point
-				return dist(p1, loc);
-			} else {
-				// Location is between both point's y positions
-				if (p1.x > loc.x) {
-					return p1.x - loc.x;
-				} else {
-					return loc.x - p1.x;
-				}
-			}
-		} else if (p1.x > p2.x) {
-			// Make p2.x > p1.x
-			Point t = p1;
-			p1 = p2;
-			p2 = t;
-		}
-		double m = (p2.y - p1.y) / (p2.x - p1.x);
-		double b = p1.y - p1.x * m;
-		double mp = -(1 / m);
-		double bp = loc.y - loc.x * mp;
-		//mx + b = mpx + bp
-		//mx - (mp)x = (bp) - b
-		//(m - (mp))x = (bp) - b
-		//x = [(bp) - b] / [m - (mp)]
-		double iX = (bp - b) / (m - mp);
-		double iY = m * iX;
-		if (iX < p1.x) {
-			// Intersect is to the left of line
-			return dist(p1, loc);
-		} else if (iX > p2.x) {
-			// Intersect is to the right of line
-			return dist(loc, p2);
-		} else {
-			// Intersect is on line
-			return dist(loc, new Point(iX, iY));
-		}
-	}*/
-
-    public static double distSq(Point p1, Point p2) {
-        double dx = p1.x - p2.x;
-        double dy = p1.y - p2.y;
-        return dx * dx + dy * dy;
-    }
-
-    public static double dist(Point p1, Point p2) {
-        return Math.sqrt(distSq(p1, p2));
-    }
-
-    public static Point midpoint(Point... ps) {
-        double x = 0, y = 0;
-        for (Point p : ps) {
-            x += p.x;
-            y += p.y;
-        }
-        return new Point(x / ps.length, y / ps.length);
-    }
-
-    /*
-    public static double getArea(MatOfPoint mat) {
-        Point m = midpoint(mat.toArray());
-        double t = 0;
-        Point[] ps = mat.toArray();
-        for (int i = 0; i < ps.length; i++) {
-            t += trigArea(ps[i], ps[(i + 1) % ps.length], m);
-        }
-        return t;
-    }
-
-    public static double trigArea(Point... ps) {
-        double[] sides = new double[3];
-        for (int i = 0; i < 3; i++) sides[i] = dist(ps[i], ps[(i + 1) % 3]);
-        double ph = (sides[0] + sides[1] + sides[2]) / 2;
-        return Math.sqrt(ph * (ph - sides[0]) * (ph - sides[1]) * (ph - sides[2]));
-    }
-    */
-
-    public static boolean isOk(double x, double y, double sx, double sy, double r) {
-        if ((x < r) || (x > (sx - r))) return false;
-        if ((y < r) || (y > (sy - r))) return false;
-        return true;
     }
 }
