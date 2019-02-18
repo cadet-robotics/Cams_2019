@@ -1,6 +1,8 @@
 import org.opencv.core.*;
+import org.opencv.core.Point;
 import org.opencv.imgproc.Imgproc;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -205,5 +207,12 @@ public class VisionCalcs {
             }
         }
         return fit;
+    }
+
+    public static final Point ZERO_POINT = new Point(0, 0);
+
+    public static void wipe(Mat m, Scalar c) {
+        Size s = m.size();
+        Imgproc.rectangle(m, ZERO_POINT, new Point(s.width, s.height), c, -1);
     }
 }

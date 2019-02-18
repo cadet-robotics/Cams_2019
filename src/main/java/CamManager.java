@@ -4,15 +4,9 @@ import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
-import org.w3c.dom.Node;
 
-import java.util.AbstractSequentialList;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 
 public class CamManager extends Thread {
     private static CamManager instance = null;
@@ -166,45 +160,44 @@ public class CamManager extends Thread {
                 //Imgproc.HoughLines(m2, m3, RHO_TRANSFORM_VALUE, 90, 90);
                 Imgproc.findContours(m2, contours, m3, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);    // Find shapes
                 lineMap.create(m1.size(), m1.type());
-                Imgproc.rectangle(lineMap, new Point(0, 0), new Point(640, 480), new Scalar(0, 0, 0), -1);
-                    /*
-                    Imgproc.drawContours(lineMap, contours, -1, AutoCamManagerUtil.COLOR_WHITE);
-                    //lineOut.putFrame(lineMap);
-                    */
-                Imgproc.rectangle(m1, new Point(0, 0), new Point(640, 480), new Scalar(0, 0, 0), -1);        // Clear m1
-                ArrayList<RotatedRect> rects = new ArrayList<>();
-                //ArrayList<MatOfPoint> cs = new ArrayList<>();
+                VisionCalcs.wipe(lineMap, new Scalar(0, 0, 0));
+                Imgproc.drawContours(lineMap, contours, -1, VisionCalcs.COLOR_WHITE);
+                System.out.println("Pairing...");
+                int[] matches = VisionCalcs.pairUp(contours);
+                System.out.println("Paired");
+                for (int i = 0; i < matches.length; i++) {
+                    if ((matches[i] == -1) || (matches[i] < i)) continue;
+                    Imgproc.line(lineMap, Imgproc.minAreaRect(new MatOfPoint2f(contours.get(i).toArray())).center, Imgproc.minAreaRect(new MatOfPoint2f(contours.get(matches[i]).toArray())).center, new Scalar(255, 0, 0));
+                }
+                lineOut.putFrame(lineMap);
+                VisionCalcs.wipe(m1, new Scalar(0, 0, 0));
+                /*
                 for (MatOfPoint c : contours) {
-                    //MatOfPoint2f cTemp1 = new MatOfPoint2f(c.toArray());
-                    //Imgproc.approxPolyDP(cTemp1, cTemp2, Imgproc.arcLength(cTemp1, true) / 1000, true);
-                    //if (Imgproc.contourArea(cTemp2) > 500 || true) contoursFilter.add(new MatOfPoint(cTemp2.toArray()));
-                    /* calculates convex hulls */
-                    MatOfPoint convexM1 = VisionCalcs.findConvexHull(c);
-                    //cs.add(convexM1);
+                    //MatOfPoint convexM1 = VisionCalcs.findConvexHull(c);
                     if (Imgproc.contourArea(c) >= 50) {
                         RotatedRect r = Imgproc.minAreaRect(new MatOfPoint2f(c.toArray())); // Get minimum area rectangle / rotated bounding box
-                        double score = Math.abs(r.size.area() / Imgproc.contourArea(c) - 1);
                         //double score = AutoCamManagerUtil.scoreRectRatio(r); // Determine how close to the expected ratio the rectangle's sides are
                         if (score <= CamManager.RATIO_SCORE_THRESH) { // It's good enough
                             rects.add(r);
                             /* Bop it */
                             /* Twist it */
-                            /* Record it */
+                            /* Record it *\/
                             targets.add(r);
-                            /* Draw it */
+                            /* Draw it *\/
                             Point[] box = new Point[4];
                             r.points(box);
                             for (int i = 0; i < 4; i++) {
                                 Imgproc.line(m1, box[i], box[(i + 1) % 4], VisionCalcs.COLOR_WHITE);//(score <= RATIO_SCORE_THRESH) ? COLOR_WHITE : COLOR_RED);
                             }
-                            /* Write it (the rectangle's "score") */
+                            /* Write it (the rectangle's "score") *\/
                             Imgproc.putText(m1, String.format("%f", score), r.center, 0, 1, VisionCalcs.COLOR_WHITE);
                         }
                     }
                 }
+                */
                 //Imgproc.drawContours(lineMap, cs, -1, AutoCamManagerUtil.COLOR_RED);
-                rectSoup(rects, lineMap);
-                lineOut.putFrame(lineMap);
+                //rectSoup(rects, lineMap);
+                //lineOut.putFrame(lineMap);
                     /*
                     if (targets.size() > 2) { // We found 2+ viable rectangles
                         // Find the most viable pair
