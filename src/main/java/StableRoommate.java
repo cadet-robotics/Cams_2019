@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.function.BiFunction;
 
 public class StableRoommate {
@@ -18,6 +19,177 @@ public class StableRoommate {
         int beforeRow = (y / 2) * (y - 1);
         // Adds column
         return beforeRow + x;
+    }
+
+    // The number of objects we're matching
+    private int len;
+    // The number of objects in each ranking list (len - 1)
+    private int lenMinusOne;
+    // The last index in each object's ranking list (len - 2)
+    private int lenMinusTwo;
+    // Whether this problem is done
+    private boolean isDone = false;
+    // What this problem will return
+    private int[] ret;
+    // Whether an object has been matched yet
+    private boolean[] isMatched;
+    // The matrix used to store match and reject information
+    private byte[] matches;
+    // How every object ranks every other object
+    private int[] ranking;
+    // The current positions objects are at on their ranking lists
+    private int[] posCache;
+    // The highest/first position in every object's list that isn't rejected, identical to posCache until step two starts
+    private int[] highest;
+    // The number of objects that have been matched
+    private int numMatched = 0;
+
+    /**
+     * For internal use
+     * Creates a new StableRoommate object
+     *
+     * @param nObjects The number of objects we're matching
+     * @param rankingIn All object's ranking lists, as a table
+     */
+    private StableRoommate(int nObjects, int[] rankingIn) {
+        len = nObjects;
+        lenMinusOne = len - 1;
+        lenMinusTwo = len - 2;
+        int tSize = len * lenMinusOne;
+        ret = new int[nObjects];
+        isMatched = new boolean[nObjects];
+        matches = new byte[tSize];
+        ranking = rankingIn;
+        posCache = new int[nObjects];
+        highest = new int[len];
+    }
+
+    /**
+     * Do step one
+     * Make sure everyone has successful proposals
+     */
+    private void stepOne() {
+        for (int i = 0; i < len; i++) {
+            propose(i);
+            if (numMatched >= len) {
+                isDone = true;
+                return;
+            }
+        }
+    }
+
+    private void stepTwo() {
+        // Set all ranking list positions to the end
+        int lenMinusTwo = lenMinusOne - 1;
+        for (int i = 0; i < len; i++) {
+            if (isMatched[i]) continue;
+            posCache[i] = lenMinusTwo;
+            // Make sure we ignore rejections
+            int iAddr = i * lenMinusOne + lenMinusTwo;
+            while (matches[iAddr] == REJECTED) { // Trusting step one to have matched everything without possible matches
+                posCache[i]--;
+                iAddr--;
+            }
+        }
+        // Start finding stable loops
+        int i = 0;
+        main:
+        while (i < len) {
+            if ()
+        }
+    }
+
+    private ArrayList<Integer> findLoop(int start) {
+        ArrayList<Integer> loop = new ArrayList<>();
+        loop.add(start);
+        int prevValue = start;
+        while (true) {
+            int prevAddr = prevValue * lenMinusOne + posCache[prevValue];
+            int nextValue = ranking[prevAddr];
+            loop.add(nextValue);
+            if (nextValue == start) return loop;
+            prevValue = nextValue;
+        }
+    }
+
+    private void decPos(int i) {
+
+    }
+
+    /**
+     * Propose as an object, working down that object's ranking list
+     *
+     * @param as The object we're proposing as
+     * @return Whether this object has been matched yet
+     */
+    private void propose(int as) {
+        if (isMatched[as]) return;
+        int asRowOffset = as * lenMinusOne;
+        int pos = posCache[as];
+        int asAddr = asRowOffset + pos;
+        int target = ranking[asAddr];
+        if (isMatched[target]) matches[asAddr] = REJECTED;
+        int targetRowOffset = target * lenMinusOne;
+        int targetAddr = targetRowOffset;
+        while (ranking[targetAddr] != as) targetAddr++;
+        if (matches[targetAddr] == REJECTED) matches[asAddr] = REJECTED;
+        while (true) {
+            switch (matches[asAddr]) {
+                case ASKED_BY: // We match perfectly
+                    match(as, target); // No need to update pos
+                    // We don't need a return statement, because switch statements are pretty fun
+                case ASKING: // Why did you even call this method?
+                    return; // By definition this must have been our first loop, so no need to update pos
+                case NONE: // Request a match
+                    matches[asAddr] = ASKING;
+                    matches[targetAddr] = ASKED_BY;
+                    highest[as] = posCache[as] = pos; // Store pos
+                    // Reject everyone below us
+                    int loopBound = targetRowOffset + lenMinusOne;
+                    for (int rejectAddr = targetAddr + 1; rejectAddr < loopBound; rejectAddr++) {
+                        if (matches[rejectAddr] == ASKED_BY) { // Someone needs to be rejected
+                            matches[rejectAddr] = REJECTED;
+                            propose(target); // They need to find someone new
+                            break; // We can stop now, as they rejected every object below them
+                        } else matches[rejectAddr] = REJECTED;
+                    }
+                    return;
+                case REJECTED: // We've been rejected
+                    if ((++pos) >= lenMinusOne) { // No one wants us
+                        takeout(as);
+                        return;
+                    }
+                    asAddr++;
+                    // Loop again
+            }
+        }
+    }
+
+    /**
+     * Takes an object out of the running
+     * This object won't be matched with anything
+     *
+     * @param object The object to take out
+     */
+    private void takeout(int object) {
+        isMatched[object] = true;
+        ret[object] = -1;
+        numMatched++;
+    }
+
+    /**
+     * Matches up two objects
+     * Don't use as a general form of takeout()
+     *
+     * @param object The first object
+     * @param with The second object
+     */
+    private void match(int object, int with) {
+        isMatched[object] = true;
+        ret[object] = with + 1;
+        isMatched[with] = true;
+        ret[with] = object + 1;
+        numMatched += 2;
     }
 
     // I wish this was c code
@@ -52,12 +224,6 @@ public class StableRoommate {
                     if (j == i) continue;
                     ranking[rowOffset + (n++)] = j;
                 }
-                // Sort
-                /*
-                List<Double> scoreList = Arrays.asList(scores);
-                Collections.sort(scoreList);
-                scores = scoreList.stream().mapToDouble(Double::doubleValue).toArray();
-                 */
                 boolean c = true;
                 while (c) {
                     c = false;
@@ -73,82 +239,48 @@ public class StableRoommate {
             }
         }
 
-        // Starts proposing and rejecting - first step in algorithm
-        // ret is filled with zeros, so we just say that the true value of ret[i] is ((ret[i] > 0) ? (ret[i] - 1) : ret[i])
-        int[] ret = new int[len];
-        boolean[] isMatched = new boolean[len];
-        int checkNext = 0;
+        // Start to solve the problem
+        StableRoommate problem = new StableRoommate(len, ranking);
 
-        // What position we should start asking at in our ranking list
-        int[] currentAskPos = new int[len];
+        problem.stepOne();
 
-        // matches is initialized with 0s because java, so it's already filled with NONEs
-        byte[] matches = new byte[len * lenMinusOne];
-        for (int i = 0; i < len; i++) {
+        if (!problem.isDone) problem.stepTwo();
+
+        // Start second step
+        {
+            ArrayList<Integer> stableLoop = new ArrayList<>(); // Stores "stable loops"
             rowOffset = i * lenMinusOne;
-            int pos = currentAskPos[i];
-            int currentTarget = ranking[rowOffset + pos];
-            switch (matches[rowOffset + pos]) {
-                case REJECTED:
-                    if ((++pos) >= lenMinusOne) {
-                        // No one wants us
-                        ret[i] = -1;
-                        // We have a girlfriend in Canada
-                        // (future maintainers may prefer "boyfriend"/etc.)
-                                isMatched[i] = true;
-                            }
-                            currentAskPos[i] = pos;
-                            break;
-                        case ASKED_BY:
-                            // Let's match them up with us then
-                            isMatched[currentTarget] = true;
-                            ret[currentTarget] = i + 1;
-                            // And now we're matched up
-                            isMatched[i] = true;
-                            ret[i] = currentTarget + 1;
-                            break;
-                        case NONE:
-                            // Do they like someone else better who also wants them?
-                            int theirRowOffset = currentTarget * lenMinusOne;
-                            boolean ok = true;
-                            int ourPosInTheirList = 0;
-                            for (; ourPosInTheirList < lenMinusOne; ourPosInTheirList++) {
-                                if (ranking[theirRowOffset + ourPosInTheirList] == i) break;
-                                else if (matches[theirRowOffset + ourPosInTheirList] == ASKED_BY) {
-                                    ok = false;
-                                    break;
-                                }
-                            }
-                            if (ok) {
-                                matches[rowOffset + pos] = ASKING;
-                                matches[theirRowOffset + ourPosInTheirList] = ASKED_BY;
-                                // Did you hear that other objects? NO ONE WANTS YOU
-                                // HAHAHAHAHAHAHA
-                                // *rejected next round*
-                                for (int j = ourPosInTheirList + 1; j < lenMinusOne; j++) {
-                                    if (matches[theirRowOffset + j] == ASKED_BY) {
-                                        matches[theirRowOffset + j] = REJECTED;
-                                        // Tell the object asking them to go away
-                                        int otherAskerOffset = ranking[theirRowOffset + j] * lenMinusOne;
-                                        int askeePosInTheirList = 0;
-                                        while (askeePosInTheirList < lenMinusOne) {
-                                            if (ranking[otherAskerOffset + askeePosInTheirList] == currentTarget) {
-                                                matches[otherAskerOffset + askeePosInTheirList] = REJECTED;
-                                                break;
-                                            }
-                                            askeePosInTheirList++;
-                                        }
-                                    }
-                                }
-                            } else {
-                                // We're rejected
-                                matches[rowOffset + pos] = REJECTED;
-                                // You can't reject me, I REJECT YOU
-                                // HAHAHAHAHAHA
-                                matches[theirRowOffset + ourPosInTheirList] = REJECTED;
-                            }
-                        case ASKING:
+            int firstChoicePos = 0; // The position of this object's first choice
+            while (true) {
+                if (matches[lastChoicePos] != REJECTED) break;
+                lastChoicePos++;
+            }
+            main:
+            for (int i = 0; i < len; i++) {
+                if (isMatched[i]) {
+                    if ((++i) >= lenMinusOne) i = 0;
+                    continue;
+                }
+                rowOffset = i * lenMinusOne;
+                // Find initial last choice
+                int lastChoicePos = rowOffset + lenMinusOne - 1; // Includes row offset
+                while (true) {
+                    if (matches[lastChoicePos] != REJECTED) break;
+                    lastChoicePos--;
+                }
+                int v = ranking[lastChoicePos];
+                stableLoop.add(v);
+                // Add to loop
+                int j = v;
+                while (true) {
+                    rowOffset = j * lenMinusOne;
+                    int lastChoicePos = rowOffset + lenMinusOne - 1; // Includes row offset
+                    while (true) {
+                        if (matches[lastChoicePos] != REJECTED) break;
+                        lastChoicePos--;
                     }
+                }
+            }
         }
     }
 }
