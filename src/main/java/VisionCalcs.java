@@ -25,8 +25,8 @@ public class VisionCalcs {
         RotatedRect r1 = Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray()));
         double areaScore = Math.abs(r1.size.area() / Imgproc.contourArea(p1) - 1);
         RotatedRect r2 = Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray()));
-        areaScore += Math.abs(r2.size.area() / Imgproc.contourArea(p2) - 1);
-        areaScore = 1 / (areaScore + 1);
+        areaScore *= Math.abs(r2.size.area() / Imgproc.contourArea(p2) - 1);
+        areaScore = 1 / areaScore;
         RotatedRect t;
         if (r1.center.x > r2.center.x) {
             t = r1;
