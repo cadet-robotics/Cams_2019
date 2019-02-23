@@ -1,3 +1,4 @@
+import com.cadet.powerboat9.stableroom.StableRoommate;
 import org.opencv.core.*;
 import org.opencv.core.Point;
 import org.opencv.imgproc.Imgproc;
@@ -214,5 +215,14 @@ public class VisionCalcs {
     public static void wipe(Mat m, Scalar c) {
         Size s = m.size();
         Imgproc.rectangle(m, ZERO_POINT, new Point(s.width, s.height), c, -1);
+    }
+
+    public static void drawRectangle(Mat m, RotatedRect r, Scalar c) {
+        Point[] points = new Point[4];
+        r.points(points);
+        Imgproc.line(m, points[0], points[1], c);
+        Imgproc.line(m, points[1], points[2], c);
+        Imgproc.line(m, points[2], points[3], c);
+        Imgproc.line(m, points[3], points[0], c);
     }
 }

@@ -1,5 +1,6 @@
 import edu.wpi.cscore.*;
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import org.opencv.core.*;
@@ -11,8 +12,9 @@ import java.util.List;
 public class CamManager extends Thread {
     private static CamManager instance = null;
     private NetworkTableInstance nt;
-    private NetworkTableEntry lineEntry;
     private NetworkTableEntry testEntry;
+    private NetworkTableEntry rectsEntry;
+    private NetworkTableEntry matchEntry;
 
     public static double RATIO_SCORE_THRESH = /*0.5*/20;
 
@@ -27,8 +29,10 @@ public class CamManager extends Thread {
 
     private CamManager(CameraServer camServer, NetworkTableInstance ntIn, VideoSource[] camsIn, int lenCams) {
         nt = ntIn;
-        lineEntry = nt.getTable("ShuffleBoard").getEntry("line");
-        testEntry = nt.getTable("ShuffleBoard").getEntry("test");
+        NetworkTable t = nt.getTable("ShuffleBoard");
+        rectsEntry = t.getEntry("rects");
+        matchEntry = t.getEntry("matches");
+        testEntry = t.getEntry("test");
         cams = new VideoCamera[lenCams];
         System.arraycopy(camsIn, 0, cams, 0, lenCams);
         ins = new CvSink[lenCams];
@@ -99,6 +103,7 @@ public class CamManager extends Thread {
         return true;
     }
 
+    /*
     public void rectSoup(List<RotatedRect> rects, Mat m) {
         int best = -1;
         double v = 0;
@@ -128,10 +133,11 @@ public class CamManager extends Thread {
         }
         if ((best != -1) && (VisionCalcs.isOk(allLines[best][0].x, allLines[best][0].y, 320, 240, 48) || VisionCalcs.isOk(allLines[best][1].x, allLines[best][1].y, 320, 240, 48))) {
             Imgproc.line(m, allLines[best][0], allLines[best][1], VisionCalcs.COLOR_RED);
-            lineEntry.setDoubleArray(new double[] {allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y});
+            camEntry.setDoubleArray(new double[] {allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y});
             Imgproc.putText(m, String.format("{(%.2f, %.2f),(%.2f, %.2f)}", allLines[best][0].x, allLines[best][0].y, allLines[best][1].x, allLines[best][1].y), VisionCalcs.midpoint(allLines[best]), 0, 0.2, VisionCalcs.COLOR_WHITE);
         }
     }
+    */
 
     public void run() {
         while (!Thread.interrupted()) {
@@ -165,9 +171,12 @@ public class CamManager extends Thread {
                 System.out.println("Pairing...");
                 int[] matches = VisionCalcs.pairUp(contours);
                 System.out.println("Paired");
-                for (int i = 0; i < matches.length; i++) {
+                RotatedRect[] rects = new RotatedRect[contours.size()];
+                for (int i = 0; i < rects.length; i++) rects[i] = Imgproc.minAreaRect(new MatOfPoint2f(contours.get(i).toArray()));
+                for (int i = 0; i < rects.length; i++) {
+                    VisionCalcs.drawRectangle(lineMap, rects[i], VisionCalcs.COLOR_RED);
                     if ((matches[i] == -1) || (matches[i] < i)) continue;
-                    Imgproc.line(lineMap, Imgproc.minAreaRect(new MatOfPoint2f(contours.get(i).toArray())).center, Imgproc.minAreaRect(new MatOfPoint2f(contours.get(matches[i]).toArray())).center, new Scalar(255, 0, 0));
+                    Imgproc.line(lineMap, rects[i].center, rects[matches[i]].center, VisionCalcs.COLOR_RED);
                 }
                 lineOut.putFrame(lineMap);
                 VisionCalcs.wipe(m1, new Scalar(0, 0, 0));
