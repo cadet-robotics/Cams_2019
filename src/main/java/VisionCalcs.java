@@ -46,21 +46,68 @@ public class VisionCalcs {
         return areaScore * angleScore;
     }
 
-    public static double getDistance(double camHozFov, double sizeViewFraction, double sizeM) {
-        // Get the size of the view in meters
-        double sizeView = sizeM / sizeViewFraction / 2;
+    public static double getDistance(double fov, double sizeViewFraction, double sizeMeters) {
+        // Get the size of half of the view in meters
+        double sizeViewHalf = sizeMeters / sizeViewFraction / 2;
         // Gets the adjacent/distance
-        // Converts camHozFov into radians, then divides by 2
-        return sizeView / Math.tan(camHozFov * Math.PI / 360);
+        // Converts fov into radians, then divides by 2
+        return sizeViewHalf / Math.tan(fov * Math.PI / 360);
+    }
+
+    public static final double RECT_LENGTH = 5.5 * 2.54;
+    public static final double RECT_WIDTH = 2 * 2.54;
+
+    public static double getDistance(Double camHozFov, Double camVerFov, Size screenSize, RotatedRect r) {
+        Double d = null;
+        boolean isWidthGreater = r.size.width >= r.size.height;
+        Rect cmp = (new RotatedRect(ZERO_POINT, isWidthGreater ? (new Size(RECT_LENGTH, RECT_WIDTH)) : (new Size(RECT_WIDTH, RECT_LENGTH)), r.angle)).boundingRect();
+        Rect rNonRot = r.boundingRect();
+        if (camHozFov != null) {
+            d = getDistance(camHozFov, rNonRot.width / screenSize.width, cmp.width);
+        }
+        if (camVerFov != null) {
+            double temp = getDistance(camVerFov, rNonRot.height / screenSize.height, cmp.height);
+            if (d == null) d = temp;
+            else d = (d + temp) / 2;
+        }
+        if (d == null) throw new IllegalArgumentException("Need at least one fov angle");
+        return d;
+    }
+
+    public static double getFractionalAngle(double fov, double screenSize, double pos) {
+        boolean isNegative = pos < (screenSize / 2);
+        if (isNegative) pos = screenSize - pos;
+        else pos = pos - screenSize;
+        double commonAdjacent = screenSize / 2 / Math.tan(fov * Math.PI / 180);
+        double r = Math.atan(pos / commonAdjacent) / Math.PI * 180;
+        return isNegative ? -r : r;
+    }
+
+    public static double[] getHVAngles(double camHozFov, double camVerFov, Size screen, Point p) {
+        return new double[] {
+                getFractionalAngle(camHozFov, screen.width, p.x),
+                getFractionalAngle(camVerFov, screen.height, p.y)
+        };
+    }
+
+    public static double[] pack(double camHozFov, double camVerFov, Size screen, RotatedRect r1, RotatedRect r2, double score) {
+        double[] ret = new double[4];
+        Point targetCenter = new Point((r1.center.x + r2.center.x) / 2, (r1.center.y + r2.center.y) / 2);
+        double[] hv = getHVAngles(camHozFov, camVerFov, screen, targetCenter);
+        ret[0] = hv[0];
+        ret[1] = hv[1];
+        ret[2] = (getDistance(camHozFov, camVerFov, screen, r1) + getDistance(camHozFov, camVerFov, screen, r2)) / 2;
+        ret[3] = score;
+        return ret;
     }
 
     public static int[] pairUp(List<MatOfPoint> in) {
         return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), VisionCalcs::getRectPairScore);
     }
 
-    public static final double RECTANGLE_TARGET_RATIO = 8;
-    public static final double RECTANGLE_DUAL_DIST = 6;
-    public static final double RECTANGLE_SIDE_DIST_RATIO = RECTANGLE_TARGET_RATIO / RECTANGLE_DUAL_DIST;
+    //public static final double RECTANGLE_TARGET_RATIO = RECT_LENGTH / RECT_WIDTH;
+    //public static final double RECTANGLE_DUAL_DIST = 6;
+    //public static final double RECTANGLE_SIDE_DIST_RATIO = RECTANGLE_TARGET_RATIO / RECTANGLE_DUAL_DIST;
 
     public static final Scalar COLOR_WHITE = new Scalar(255, 255, 255);
     public static final Scalar COLOR_RED = new Scalar(0, 0, 255);

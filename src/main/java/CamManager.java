@@ -13,8 +13,7 @@ public class CamManager extends Thread {
     private static CamManager instance = null;
     private NetworkTableInstance nt;
     private NetworkTableEntry testEntry;
-    private NetworkTableEntry rectsEntry;
-    private NetworkTableEntry matchEntry;
+    private NetworkTableEntry targetsEntry;
 
     public static double RATIO_SCORE_THRESH = /*0.5*/20;
 
@@ -27,11 +26,13 @@ public class CamManager extends Thread {
 
     //public static final CamType[] camTypes = new CamType[] {CamType.CAM_LIFE_HD_3000, CamType.CAM_LIFE_HD_3000};
 
+    public static final double H_FOV = 49;
+    public static final double V_FOV = 49;
+
     private CamManager(CameraServer camServer, NetworkTableInstance ntIn, VideoSource[] camsIn, int lenCams) {
         nt = ntIn;
         NetworkTable t = nt.getTable("ShuffleBoard");
-        rectsEntry = t.getEntry("rects");
-        matchEntry = t.getEntry("matches");
+        targetsEntry = t.getEntry("targets");
         testEntry = t.getEntry("test");
         cams = new VideoCamera[lenCams];
         System.arraycopy(camsIn, 0, cams, 0, lenCams);
@@ -178,6 +179,23 @@ public class CamManager extends Thread {
                     if ((matches[i] == -1) || (matches[i] < i)) continue;
                     Imgproc.line(lineMap, rects[i].center, rects[matches[i]].center, VisionCalcs.COLOR_RED);
                 }
+                // Save data
+                int numPairs = 0;
+                for (int i = 0; i < matches.length; i++) {
+                    if (i < matches[i]) numPairs++;
+                }
+                double[] output = new double[numPairs * 4];
+                int wIndex = 0;
+                for (int i = 0; i < matches.length; i++) {
+                    if (i < matches[i]) {
+                        double[] tmp = VisionCalcs.pack(H_FOV, V_FOV, m1.size(), rects[i], rects[matches[i]], VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i])));
+                        output[wIndex++] = tmp[0];
+                        output[wIndex++] = tmp[1];
+                        output[wIndex++] = tmp[2];
+                        output[wIndex++] = tmp[3];
+                    }
+                }
+                targetsEntry.setDoubleArray(output);
                 lineOut.putFrame(lineMap);
                 VisionCalcs.wipe(m1, new Scalar(0, 0, 0));
                 /*
