@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="25436200-4242-4dcb-abb8-9e5752c01af2" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/out/production/classes/AutoCamManagerUtil.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/out/production/classes/CamManager.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/out/production/classes/Main$CameraConfig.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/out/production/classes/Main$MyPipeline.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/out/production/classes/Main.class" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/CamManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/CamManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/VisionCalcs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/VisionCalcs.java" afterDir="false" />
-    </list>
+    <list default="true" id="25436200-4242-4dcb-abb8-9e5752c01af2" name="Default Changelist" comment="" />
     <ignored path="$PROJECT_DIR$/.gradle/" />
     <ignored path="$PROJECT_DIR$/build/" />
     <ignored path="$PROJECT_DIR$/out/" />
@@ -59,8 +50,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/java/CamManager.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="457">
-              <caret line="197" column="52" lean-forward="true" selection-start-line="197" selection-start-column="52" selection-end-line="197" selection-end-column="52" />
+            <state relative-caret-position="236">
+              <caret line="184" column="50" lean-forward="true" selection-start-line="184" selection-start-column="50" selection-end-line="184" selection-end-column="50" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -441,8 +432,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/CamManager.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="457">
-          <caret line="197" column="52" lean-forward="true" selection-start-line="197" selection-start-column="52" selection-end-line="197" selection-end-column="52" />
+        <state relative-caret-position="236">
+          <caret line="184" column="50" lean-forward="true" selection-start-line="184" selection-start-column="50" selection-end-line="184" selection-end-column="50" />
           <folding>
             <element signature="imports" expanded="true" />
           </folding>
