@@ -62,7 +62,7 @@ public class CamManager extends Thread {
 
     //public static final int RHO_TRANSFORM_VALUE = (int) Math.ceil(Math.sqrt(640 * 640 + 480 * 480));
 
-    public static final Scalar FILTER_LOW = new Scalar(0, 50, 0);
+    public static final Scalar FILTER_LOW = new Scalar(0, 85, 0);
     public static final Scalar FILTER_HIGH = new Scalar(255, 255, 255);
 
     public static final int BLUR_THRESH = 60;

@@ -1,7 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="25436200-4242-4dcb-abb8-9e5752c01af2" name="Default Changelist" comment="" />
+    <list default="true" id="25436200-4242-4dcb-abb8-9e5752c01af2" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/fileHashes/fileHashes.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/fileHashes/fileHashes.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/javaCompile/classAnalysis.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/javaCompile/classAnalysis.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/javaCompile/javaCompile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/javaCompile/javaCompile.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/taskHistory/taskHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/taskHistory/taskHistory.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/5.0/taskHistory/taskHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/5.0/taskHistory/taskHistory.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/CamManager.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/CamManager.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/classes/java/main/VisionCalcs.class" beforeDir="false" afterPath="$PROJECT_DIR$/build/classes/java/main/VisionCalcs.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/distributions/cam-shadow.tar" beforeDir="false" afterPath="$PROJECT_DIR$/build/distributions/cam-shadow.tar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/distributions/cam-shadow.zip" beforeDir="false" afterPath="$PROJECT_DIR$/build/distributions/cam-shadow.zip" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/distributions/cam.tar" beforeDir="false" afterPath="$PROJECT_DIR$/build/distributions/cam.tar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/distributions/cam.zip" beforeDir="false" afterPath="$PROJECT_DIR$/build/distributions/cam.zip" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/libs/cam-all.jar" beforeDir="false" afterPath="$PROJECT_DIR$/build/libs/cam-all.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/libs/cam.jar" beforeDir="false" afterPath="$PROJECT_DIR$/build/libs/cam.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/scripts/cam" beforeDir="false" afterPath="$PROJECT_DIR$/build/scripts/cam" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/CamManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/CamManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/VisionCalcs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/VisionCalcs.java" afterDir="false" />
+    </list>
     <ignored path="$PROJECT_DIR$/.gradle/" />
     <ignored path="$PROJECT_DIR$/build/" />
     <ignored path="$PROJECT_DIR$/out/" />
@@ -47,11 +67,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/CamManager.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="236">
-              <caret line="184" column="50" lean-forward="true" selection-start-line="184" selection-start-column="50" selection-end-line="184" selection-end-column="50" />
+            <state relative-caret-position="255">
+              <caret line="65" column="63" selection-start-line="65" selection-start-column="63" selection-end-line="65" selection-end-column="63" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -59,14 +79,14 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/java/VisionCalcs.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="254">
-              <caret line="102" lean-forward="true" selection-start-line="102" selection-end-line="102" />
+            <state relative-caret-position="481">
+              <caret line="284" column="5" lean-forward="true" selection-start-line="284" selection-start-column="5" selection-end-line="284" selection-end-column="5" />
               <folding>
                 <element signature="imports" expanded="true" />
-                <element signature="e#7065#7066#0" expanded="true" />
+                <element signature="e#8101#8102#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -103,8 +123,8 @@
         <option value="$PROJECT_DIR$/src/main/java/JavaIsCancerChangeMyMind.java" />
         <option value="$PROJECT_DIR$/src/main/java/StableRoommate.java" />
         <option value="$PROJECT_DIR$/build.gradle" />
-        <option value="$PROJECT_DIR$/src/main/java/VisionCalcs.java" />
         <option value="$PROJECT_DIR$/src/main/java/CamManager.java" />
+        <option value="$PROJECT_DIR$/src/main/java/VisionCalcs.java" />
       </list>
     </option>
   </component>
@@ -419,23 +439,23 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/VisionCalcs.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/CamManager.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="254">
-          <caret line="102" lean-forward="true" selection-start-line="102" selection-end-line="102" />
+        <state relative-caret-position="255">
+          <caret line="65" column="63" selection-start-line="65" selection-start-column="63" selection-end-line="65" selection-end-column="63" />
           <folding>
             <element signature="imports" expanded="true" />
-            <element signature="e#7065#7066#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/CamManager.java">
+    <entry file="file://$PROJECT_DIR$/src/main/java/VisionCalcs.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="236">
-          <caret line="184" column="50" lean-forward="true" selection-start-line="184" selection-start-column="50" selection-end-line="184" selection-end-column="50" />
+        <state relative-caret-position="481">
+          <caret line="284" column="5" lean-forward="true" selection-start-line="284" selection-start-column="5" selection-end-line="284" selection-end-column="5" />
           <folding>
             <element signature="imports" expanded="true" />
+            <element signature="e#8101#8102#0" expanded="true" />
           </folding>
         </state>
       </provider>

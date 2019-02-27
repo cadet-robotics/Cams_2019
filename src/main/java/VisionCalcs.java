@@ -21,12 +21,19 @@ public class VisionCalcs {
         return out;
     }
 
+    public static final double MIN_RECT_AREA = 50;
+
     public static double getRectPairScore(MatOfPoint p1, MatOfPoint p2) {
         RotatedRect r1 = Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray()));
-        double areaScore = Math.abs(r1.size.area() / Imgproc.contourArea(p1) - 1);
+        double area1 = r1.size.area();
+        if (area1 < MIN_RECT_AREA) return 0;
+        double areaScore1 = Math.abs(area1 / Imgproc.contourArea(p1) - 1);
         RotatedRect r2 = Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray()));
-        areaScore *= Math.abs(r2.size.area() / Imgproc.contourArea(p2) - 1);
-        areaScore = 1 / areaScore;
+        double area2 = r2.size.area();
+        if (area2 < MIN_RECT_AREA) return 0;
+        double areaScore2 = Math.abs(area2 / Imgproc.contourArea(p2) - 1);
+        double areaScore = 2 / (areaScore1 + areaScore2);
+        double areaDiffScore = (area2 > area1) ? (area1 / area2) : (area2 / area1);
         RotatedRect t;
         if (r1.center.x > r2.center.x) {
             t = r1;
@@ -42,8 +49,28 @@ public class VisionCalcs {
         double angle2 = r2.angle * Math.PI / 180;
         double angleDiff2 = JavaIsCancerChangeMyMind.moduloIsCancer(angle2 - angleAcrossPerp, Math.PI * 2);
         if (angleDiff2 > Math.PI) angleDiff2 = Math.PI * 2 - angleDiff2;
-        double angleScore = (angleDiff1 + angleDiff2) / Math.PI / 4;
-        return areaScore * angleScore;
+        double angleScore = Math.pow(0.1, Math.abs(angleDiff1 + angleDiff2));
+        return weightedAverage(areaScore, 5, angleScore, 1, areaDiffScore, 0.5);
+    }
+
+    /**
+     * Returns a weighted average
+     *
+     * @param vars All values and their weights in {num, weight, num, weight, num, weight, ...} form
+     * @return A weighted average
+     */
+    public static double weightedAverage(double... vars) {
+        if ((vars.length % 2) != 0) {
+            throw new IllegalArgumentException("Must pass even number of arguments");
+        }
+        double r = 0;
+        double div = 0;
+        for (int i = 1; i < vars.length; i += 2) {
+            r += vars[i - 1] * vars[i];
+            div += vars[i];
+        }
+        if (div == 0) return 0; // r should also be zero, so we'd return 0/0
+        return r / div;
     }
 
     public static double getDistance(double fov, double sizeViewFraction, double sizeMeters) {
