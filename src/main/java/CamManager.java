@@ -62,7 +62,7 @@ public class CamManager extends Thread {
 
     //public static final int RHO_TRANSFORM_VALUE = (int) Math.ceil(Math.sqrt(640 * 640 + 480 * 480));
 
-    public static final Scalar FILTER_LOW = new Scalar(0, 85, 0);
+    public static final Scalar FILTER_LOW = new Scalar(0, 75, 0);
     public static final Scalar FILTER_HIGH = new Scalar(255, 255, 255);
 
     public static final int BLUR_THRESH = 60;
@@ -169,9 +169,14 @@ public class CamManager extends Thread {
                 lineMap.create(m1.size(), m1.type());
                 VisionCalcs.wipe(lineMap, new Scalar(0, 0, 0));
                 Imgproc.drawContours(lineMap, contours, -1, VisionCalcs.COLOR_WHITE);
-                System.out.println("Pairing...");
+                //System.out.println("Pairing...");
                 int[] matches = VisionCalcs.pairUp(contours);
-                System.out.println("Paired");
+                //System.out.println("Paired");
+                for (int i = 0; i < matches.length; i++) {
+                    if ((matches[i] != -1) && (matches[i] > i)) {
+                        System.out.println(VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i])));
+                    }
+                }
                 RotatedRect[] rects = new RotatedRect[contours.size()];
                 for (int i = 0; i < rects.length; i++) rects[i] = Imgproc.minAreaRect(new MatOfPoint2f(contours.get(i).toArray()));
                 for (int i = 0; i < rects.length; i++) {

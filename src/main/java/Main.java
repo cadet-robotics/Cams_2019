@@ -229,13 +229,16 @@ public final class Main {
             ntinst.startClientTeam(team);
         }
 
+        IPThread ip = new IPThread(ntinst);
+        ip.start();
+
         // start cameras
         CameraServer inst = CameraServer.getInstance();
         List<VideoSource> cameras = new ArrayList<>();
         for (CameraConfig cameraConfig : cameraConfigs) {
             cameras.add(startCamera(inst, cameraConfig));
         }
-        CamManager.init(inst, ntinst, cameras.toArray(new VideoSource[cameras.size()]), cameras.size());
+        CamManager.init(inst, ntinst, cameras.toArray(new VideoSource[0]), cameras.size());
         CamManager.startCams();
 
 

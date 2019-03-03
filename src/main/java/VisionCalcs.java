@@ -27,11 +27,11 @@ public class VisionCalcs {
         RotatedRect r1 = Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray()));
         double area1 = r1.size.area();
         if (area1 < MIN_RECT_AREA) return 0;
-        double areaScore1 = Math.abs(area1 / Imgproc.contourArea(p1) - 1);
+        double areaScore1 = Imgproc.contourArea(p1) / area1;
         RotatedRect r2 = Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray()));
         double area2 = r2.size.area();
         if (area2 < MIN_RECT_AREA) return 0;
-        double areaScore2 = Math.abs(area2 / Imgproc.contourArea(p2) - 1);
+        double areaScore2 = Imgproc.contourArea(p2) / area2;
         double areaScore = 2 / (areaScore1 + areaScore2);
         double areaDiffScore = (area2 > area1) ? (area1 / area2) : (area2 / area1);
         RotatedRect t;
@@ -129,7 +129,7 @@ public class VisionCalcs {
     }
 
     public static int[] pairUp(List<MatOfPoint> in) {
-        return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), VisionCalcs::getRectPairScore);
+        return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), VisionCalcs::getRectPairScore, 1.7);
     }
 
     //public static final double RECTANGLE_TARGET_RATIO = RECT_LENGTH / RECT_WIDTH;
