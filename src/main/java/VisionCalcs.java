@@ -23,18 +23,18 @@ public class VisionCalcs {
 
     public static final double MIN_RECT_AREA = 50;
 
-    public static double getRectPairScore(MatOfPoint p1, MatOfPoint p2) {
+    public static double getRectPairScore(MatOfPoint p1, MatOfPoint p2, RectCmpWeights weights) {
         RotatedRect r1 = normalizeRect(Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray())));
         double area1 = r1.size.area();
         if (area1 < MIN_RECT_AREA) return 0;
-        double areaScore1 = Imgproc.contourArea(p1) / area1;
 
         RotatedRect r2 = normalizeRect(Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray())));
         double area2 = r2.size.area();
         if (area2 < MIN_RECT_AREA) return 0;
-        double areaScore2 = Imgproc.contourArea(p2) / area2;
 
-        double areaScore = 2 / (areaScore1 + areaScore2);
+        // 0 to 1
+        double areaScore = ((Imgproc.contourArea(p1) / area1) + (Imgproc.contourArea(p2) / area2)) / 2;
+        // 0 to 1
         double areaDiffScore = (area2 > area1) ? (area1 / area2) : (area2 / area1);
 
         RotatedRect t;
@@ -62,10 +62,17 @@ public class VisionCalcs {
             return 0;
         }
 
-        double angleScore = angleDiff1 - angleDiff2;
-        if (angleScore > 0) angleScore = -angleScore;
+        // 0 to 1
+        double angleScore = (angleDiff1 - angleDiff2) / Math.PI;
+        if (angleScore < 0) angleScore = -angleScore;
+        angleScore = 1 - angleScore;
 
-        return weightedAverage(areaScore, 5, angleScore, 1, areaDiffScore, 0.5);
+        // 0 to 1
+        double simScore = angleScore - areaDiffScore;
+        if (simScore < 0) simScore = -simScore;
+        simScore = 1 - simScore;
+
+        return weightedAverage(areaScore, weights.areaWeight, angleScore, weights.angleWeight, areaDiffScore, weights.areaDiffWeight, simScore, weights.simWeight);
     }
 
     /**
@@ -164,8 +171,8 @@ public class VisionCalcs {
         return ret;
     }
 
-    public static int[] pairUp(List<MatOfPoint> in) {
-        return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), VisionCalcs::getRectPairScore, 1.7);
+    public static int[] pairUp(List<MatOfPoint> in, RectCmpWeights w) {
+        return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), (v1, v2) -> VisionCalcs.getRectPairScore(v1, v2, w), 1.7);
     }
 
     public static final Scalar COLOR_WHITE = new Scalar(255, 255, 255);

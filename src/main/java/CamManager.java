@@ -11,6 +11,7 @@ import java.util.ArrayList;
 public class CamManager extends Thread {
     private NetworkTableEntry testEntry;
     private NetworkTableEntry targetsEntry;
+    private NetworkTableEntry weightsEntry;
 
     private static CvSink[] ins;
     private static CvSource originalOut; // to computer from robot
@@ -26,6 +27,8 @@ public class CamManager extends Thread {
         NetworkTable t = nt.getTable("ShuffleBoard");
         targetsEntry = t.getEntry("targets");
         testEntry = t.getEntry("test");
+        weightsEntry = t.getEntry("weights");
+        RectCmpWeights.writeDefaults(weightsEntry);
 
         ins = new CvSink[lenCams];
         if (ins.length == 0) {
@@ -63,6 +66,8 @@ public class CamManager extends Thread {
             testEntry.setNumber(System.currentTimeMillis());
             ins[0].grabFrame(camFrame);
             if (!camFrame.empty()) {
+                RectCmpWeights weights = RectCmpWeights.readFrom(weightsEntry);
+
                 originalOut.putFrame(camFrame);
                 Imgproc.cvtColor(camFrame, workingFrame, Imgproc.COLOR_BGR2HLS);                                            // Change color scheme from BGR to HSL
                 Core.inRange(workingFrame, FILTER_LOW, FILTER_HIGH, workingFrame);                                                // Filter colors with <250 lightness
@@ -76,11 +81,11 @@ public class CamManager extends Thread {
                 VisionCalcs.wipe(lineMap, new Scalar(0, 0, 0));
                 Imgproc.drawContours(lineMap, contours, -1, VisionCalcs.COLOR_WHITE);
 
-                int[] matches = VisionCalcs.pairUp(contours);
+                int[] matches = VisionCalcs.pairUp(contours, weights);
 
                 for (int i = 0; i < matches.length; i++) {
                     if ((matches[i] != -1) && (matches[i] > i)) {
-                        System.out.println(VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i])));
+                        System.out.println(VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i]), weights));
                     }
                 }
 
@@ -102,7 +107,7 @@ public class CamManager extends Thread {
                 int wIndex = 0;
                 for (int i = 0; i < matches.length; i++) {
                     if (i < matches[i]) {
-                        double[] tmp = VisionCalcs.pack(H_FOV, V_FOV, camFrame.size(), rects[i], rects[matches[i]], VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i])));
+                        double[] tmp = VisionCalcs.pack(H_FOV, V_FOV, camFrame.size(), rects[i], rects[matches[i]], VisionCalcs.getRectPairScore(contours.get(i), contours.get(matches[i]), weights));
                         output[wIndex++] = tmp[0];
                         output[wIndex++] = tmp[1];
                         output[wIndex++] = tmp[2];
