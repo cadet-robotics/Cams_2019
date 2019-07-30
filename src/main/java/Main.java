@@ -120,7 +120,6 @@ public final class Main {
     /**
      * Read configuration file.
      */
-    @SuppressWarnings("PMD.CyclomaticComplexity")
     public static boolean readConfig() {
         // parse file
         JsonElement top;
@@ -238,8 +237,8 @@ public final class Main {
         for (CameraConfig cameraConfig : cameraConfigs) {
             cameras.add(startCamera(inst, cameraConfig));
         }
-        CamManager.init(inst, ntinst, cameras.toArray(new VideoSource[0]), cameras.size());
-        CamManager.startCams();
+        CamManager camManager = new CamManager(inst, ntinst, cameras.toArray(new VideoSource[0]), cameras.size());
+        camManager.start();
 
 
         // start image processing on camera 0 if present
