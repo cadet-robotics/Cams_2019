@@ -24,33 +24,75 @@ public class VisionCalcs {
     public static final double MIN_RECT_AREA = 50;
 
     public static double getRectPairScore(MatOfPoint p1, MatOfPoint p2) {
-        RotatedRect r1 = Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray()));
+        RotatedRect r1 = normalizeRect(Imgproc.minAreaRect(new MatOfPoint2f(p1.toArray())));
         double area1 = r1.size.area();
         if (area1 < MIN_RECT_AREA) return 0;
         double areaScore1 = Imgproc.contourArea(p1) / area1;
-        RotatedRect r2 = Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray()));
+
+        RotatedRect r2 = normalizeRect(Imgproc.minAreaRect(new MatOfPoint2f(p2.toArray())));
         double area2 = r2.size.area();
         if (area2 < MIN_RECT_AREA) return 0;
         double areaScore2 = Imgproc.contourArea(p2) / area2;
+
         double areaScore = 2 / (areaScore1 + areaScore2);
         double areaDiffScore = (area2 > area1) ? (area1 / area2) : (area2 / area1);
+
         RotatedRect t;
         if (r1.center.x > r2.center.x) {
             t = r1;
             r1 = r2;
             r2 = t;
         }
+
         Point across = new Point(r2.center.x - r1.center.x, r2.center.y - r1.center.y);
         double angleAcross = Math.atan2(across.y, across.x); // IN RADIANS
-        double angleAcrossPerp = JavaIsCancerChangeMyMind.moduloIsCancer(angleAcross - Math.PI / 2, Math.PI * 2);
+        if (angleAcross < 0) angleAcross  = angleAcross + 2 * Math.PI;
+
         double angle1 = r1.angle * Math.PI / 180;
+        double angle2 = r2.angle * Math.PI / 180;
+
+        double angleAcrossPerp = angleAcross + (Math.PI / 2);
+
         double angleDiff1 = JavaIsCancerChangeMyMind.moduloIsCancer(angle1 - angleAcrossPerp, Math.PI * 2);
         if (angleDiff1 > Math.PI) angleDiff1 = Math.PI * 2 - angleDiff1;
-        double angle2 = r2.angle * Math.PI / 180;
         double angleDiff2 = JavaIsCancerChangeMyMind.moduloIsCancer(angle2 - angleAcrossPerp, Math.PI * 2);
         if (angleDiff2 > Math.PI) angleDiff2 = Math.PI * 2 - angleDiff2;
-        double angleScore = Math.pow(0.1, Math.abs(angleDiff1 + angleDiff2));
+
+        if ((angleDiff1 > (Math.PI / 1.5)) || (angleDiff2 > (Math.PI / 1.5))) {
+            return 0;
+        }
+
+        double angleScore = angleDiff1 - angleDiff2;
+        if (angleScore > 0) angleScore = -angleScore;
+
         return weightedAverage(areaScore, 5, angleScore, 1, areaDiffScore, 0.5);
+    }
+
+    /**
+     * Returns a duplicate of a RotatedRect, but with:
+     *
+     * * height > width
+     * * angle >= 270 or angle <= 90
+     *
+     * @param in The input rectangle
+     * @return The "normalized" rectangle
+     */
+    @SuppressWarnings("SuspiciousNameCombination")
+    public static RotatedRect normalizeRect(RotatedRect in) {
+        double angle = in.angle;
+        double height = in.size.height;
+        double width = in.size.width;
+        Size newSize;
+        if (height > width) {
+            newSize = new Size(height, width);
+            angle = (angle + 90) % 360;
+        } else {
+            newSize = in.size;
+        }
+        if ((angle > 90) && (angle < 270)) {
+            angle = (angle + 180) % 360;
+        }
+        return new RotatedRect(in.center, newSize, angle);
     }
 
     /**
@@ -84,20 +126,22 @@ public class VisionCalcs {
     public static final double RECT_LENGTH = 5.5 * 2.54;
     public static final double RECT_WIDTH = 2 * 2.54;
 
-    public static double getDistance(Double camHozFov, Double camVerFov, Size screenSize, RotatedRect r) {
-        Double d = null;
+    public static double getDistance(double camHozFov, double camVerFov, Size screenSize, RotatedRect r) {
+        double d = 0;
+        int cnt = 0;
         boolean isWidthGreater = r.size.width >= r.size.height;
         Rect cmp = (new RotatedRect(ZERO_POINT, isWidthGreater ? (new Size(RECT_LENGTH, RECT_WIDTH)) : (new Size(RECT_WIDTH, RECT_LENGTH)), r.angle)).boundingRect();
         Rect rNonRot = r.boundingRect();
-        if (camHozFov != null) {
+        if (!Double.isNaN(camHozFov)) {
             d = getDistance(camHozFov, rNonRot.width / screenSize.width, cmp.width);
+            cnt++;
         }
-        if (camVerFov != null) {
-            double temp = getDistance(camVerFov, rNonRot.height / screenSize.height, cmp.height);
-            if (d == null) d = temp;
-            else d = (d + temp) / 2;
+        if (!Double.isNaN(camVerFov)) {
+            d += getDistance(camVerFov, rNonRot.height / screenSize.height, cmp.height);
+            cnt++;
         }
-        if (d == null) throw new IllegalArgumentException("Need at least one fov angle");
+        if (cnt == 0) throw new IllegalArgumentException("Need at least one fov angle");
+        d /= cnt;
         return d;
     }
 
@@ -110,19 +154,11 @@ public class VisionCalcs {
         return isNegative ? -r : r;
     }
 
-    public static double[] getHVAngles(double camHozFov, double camVerFov, Size screen, Point p) {
-        return new double[] {
-                getFractionalAngle(camHozFov, screen.width, p.x),
-                getFractionalAngle(camVerFov, screen.height, p.y)
-        };
-    }
-
     public static double[] pack(double camHozFov, double camVerFov, Size screen, RotatedRect r1, RotatedRect r2, double score) {
         double[] ret = new double[4];
         Point targetCenter = new Point((r1.center.x + r2.center.x) / 2, (r1.center.y + r2.center.y) / 2);
-        double[] hv = getHVAngles(camHozFov, camVerFov, screen, targetCenter);
-        ret[0] = hv[0];
-        ret[1] = hv[1];
+        ret[0] = getFractionalAngle(camHozFov, screen.width, targetCenter.x);
+        ret[1] = getFractionalAngle(camVerFov, screen.height, targetCenter.y);
         ret[2] = (getDistance(camHozFov, camVerFov, screen, r1) + getDistance(camHozFov, camVerFov, screen, r2)) / 2;
         ret[3] = score;
         return ret;
@@ -132,19 +168,9 @@ public class VisionCalcs {
         return StableRoommate.runProblem(in.toArray(new MatOfPoint[0]), VisionCalcs::getRectPairScore, 1.7);
     }
 
-    //public static final double RECTANGLE_TARGET_RATIO = RECT_LENGTH / RECT_WIDTH;
-    //public static final double RECTANGLE_DUAL_DIST = 6;
-    //public static final double RECTANGLE_SIDE_DIST_RATIO = RECTANGLE_TARGET_RATIO / RECTANGLE_DUAL_DIST;
-
     public static final Scalar COLOR_WHITE = new Scalar(255, 255, 255);
     public static final Scalar COLOR_RED = new Scalar(0, 0, 255);
     public static final Scalar COLOR_GREEN = new Scalar(0, 255, 0);
-
-    public static boolean isOk(double x, double y, double sx, double sy, double r) {
-        if ((x < r) || (x > (sx - r))) return false;
-        if ((y < r) || (y > (sy - r))) return false;
-        return true;
-    }
 
     public static <T> int[] getBestPair(List<T> data, BiFunction<T, T, Double> test) {
         int l = data.size();
